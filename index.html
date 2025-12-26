@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fazeen's Sanctuary</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri&family=Dancing+Script:wght@600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        .arabic-text { font-family: 'Amiri', serif; direction: rtl; }
+        .handwritten { font-family: 'Dancing Script', cursive; }
+        body { font-family: 'Inter', sans-serif; background: #fffcfc; color: #1e293b; margin: 0; }
+        .mushaf-container { max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 15px; background: white; border-radius: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+        .active-rain { background: #0369a1 !important; color: white !important; }
+    </style>
+</head>
+<body>
+    <div class="bg-rose-500 text-white text-center py-2 text-[10px] font-bold uppercase tracking-widest">
+        Happy Birthday Fazeen • Your Sanctuary of Peace
+    </div>
+
+    <nav class="p-6 text-center border-b bg-white sticky top-0 z-50">
+        <h1 class="text-3xl font-bold text-emerald-900">Fazeen’s Sanctuary</h1>
+        <p class="text-[10px] tracking-widest text-rose-500 font-bold mt-1">27.12.2025</p>
+    </nav>
+
+    <div class="max-w-2xl mx-auto p-4 space-y-6">
+        <button id="rain-btn" onclick="toggleRain()" class="w-full py-4 bg-sky-50 text-sky-800 rounded-2xl font-bold text-xs border border-sky-100 flex items-center justify-center gap-2">
+            🌧️ Tap for Rain Ambience
+        </button>
+
+        <div class="bg-white rounded-3xl shadow-xl border border-stone-100 p-5">
+            <div class="flex flex-col gap-3 mb-6">
+                <div class="flex gap-2">
+                    <select id="lang-sel" onchange="changeLanguage()" class="flex-1 bg-stone-100 p-3 rounded-xl text-xs font-bold outline-none border-none">
+                        <option value="en.sahih">English Translation</option>
+                        <option value="ur.jalandhry">Urdu Translation</option>
+                    </select>
+                    <button id="play-btn" onclick="toggleAudio()" class="px-6 bg-emerald-600 text-white rounded-xl text-xs font-bold uppercase">Play</button>
+                </div>
+                <button onclick="loadFullQuran()" class="w-full py-3 bg-rose-50 text-rose-600 rounded-xl text-[10px] font-bold uppercase border border-rose-100">Read Entire Quran</button>
+            </div>
+
+            <div id="mushaf-display" class="mushaf-container">
+                <div id="home-view" class="text-center py-12">
+                    <h2 class="handwritten text-6xl text-emerald-900 mb-2">Fazeen</h2>
+                    <p class="text-stone-400 text-sm italic mb-8">Select a Surah to begin</p>
+                    <div id="surah-grid" class="grid grid-cols-2 gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-emerald-900 text-white rounded-[2rem] p-6 text-center shadow-lg">
+            <div id="tasbih-count" class="text-5xl font-light mb-4">0</div>
+            <button onclick="count()" class="bg-white text-emerald-900 px-10 py-3 rounded-full font-bold">Tasbih</button>
+        </div>
+    </div>
+
+    <audio id="q-audio"></audio>
+    <audio id="n-audio" loop src="https://actions.google.com/sounds/v1/water/rain_on_roof.ogg"></audio>
+
+    <script>
+        let lastId = null;
+        const API = "https://api.alquran.cloud/v1";
+
+        async function init() {
+            try {
+                const res = await fetch(`${API}/surah`);
+                const data = await res.json();
+                document.getElementById('surah-grid').innerHTML = data.data.map(s => `
+                    <button onclick="loadSurah(${s.number})" class="p-3 bg-stone-50 rounded-xl border text-left active:bg-emerald-50">
+                        <span class="block text-[8px] text-stone-400 font-bold">${s.number}</span>
+                        <span class="block text-[11px] font-bold">${s.englishName}</span>
+                    </button>
+                `).join('');
+            } catch(e) {}
+        }
+
+        async function loadSurah(id) {
+            if(!id) return;
+            lastId = id;
+            const lang = document.getElementById('lang-sel').value;
+            const display = document.getElementById('mushaf-display');
+            display.innerHTML = `<p class="text-center py-20 text-emerald-600 font-bold">Opening...</p>`;
+            document.getElementById('q-audio').src = `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${id}.mp3`;
+            document.getElementById('play-btn').innerText = "Play";
+            try {
+                const res = await fetch(`${API}/surah/${id}/editions/quran-uthmani,${lang}`);
+                const data = await res.json();
+                let html = `<h2 class="text-center text-2xl font-bold text-emerald-900 mb-8">${data.data[0].englishName}</h2>`;
+                data.data[0].ayahs.forEach((ayah, i) => {
+                    html += `<div class="mb-10 border-b border-stone-50 pb-6"><p class="arabic-text text-3xl text-right leading-loose mb-4">${ayah.text}</p><p class="text-stone-500 text-sm">${data.data[1].ayahs[i].text}</p></div>`;
+                });
+                display.innerHTML = html;
+                display.scrollTop = 0;
+            } catch(e) { display.innerHTML = "Error loading. Try again."; }
+        }
+
+        async function loadFullQuran() {
+            const display = document.getElementById('mushaf-display');
+            const lang = document.getElementById('lang-sel').value;
+            display.innerHTML = `<p class="text-center py-20 text-emerald-600 font-bold">Loading Full Quran...</p>`;
+            try {
+                const res = await fetch(`${API}/quran/${lang}`);
+                const d = await res.json();
+                let html = `<h2 class="text-center font-bold mb-10">Noble Quran</h2>`;
+                d.data.surahs.forEach(s => {
+                    html += `<div class="bg-emerald-50 p-2 my-4 rounded font-bold text-xs">${s.number}. ${s.englishName}</div>`;
+                    s.ayahs.forEach(a => { html += `<p class="mb-4 text-xs">${a.text}</p>`; });
+                });
+                display.innerHTML = html;
+            } catch(e) { alert("Memory limit reached. Use Surah view."); }
+        }
+
+        function changeLanguage() { if(lastId) loadSurah(lastId); }
+        function toggleAudio() {
+            const a = document.getElementById('q-audio');
+            const b = document.getElementById('play-btn');
+            if(!a.src) return;
+            if(a.paused) { a.play(); b.innerText = "Pause"; }
+            else { a.pause(); b.innerText = "Play"; }
+        }
+        function toggleRain() {
+            const a = document.getElementById('n-audio');
+            const btn = document.getElementById('rain-btn');
+            if(a.paused) { a.play(); btn.classList.add('active-rain'); btn.innerText = "🌧️ Rain is On"; }
+            else { a.pause(); btn.classList.remove('active-rain'); btn.innerText = "🌧️ Tap for Rain Ambience"; }
+        }
+        function count() { document.getElementById('tasbih-count').innerText = parseInt(document.getElementById('tasbih-count').innerText) + 1; }
+        init();
+    </script>
+</body>
+</html>
